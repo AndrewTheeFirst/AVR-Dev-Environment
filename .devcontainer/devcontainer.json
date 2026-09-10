@@ -1,0 +1,21 @@
+{
+  "name": "AVR C Development",
+  "build": {
+    "dockerfile": "Dockerfile",
+      "args": {
+        "UID": "1000",
+        "GID": "1000"
+    }
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack"
+      ]
+    }
+  },
+  "remoteUser": "dev"
+}

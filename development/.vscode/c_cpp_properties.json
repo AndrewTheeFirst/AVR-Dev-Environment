@@ -1,0 +1,9 @@
+{
+  "configurations": [
+    {
+      "name": "AVR",
+      "compileCommands": "/workspace/development/artifacts/compile_commands.json"
+    }
+  ],
+  "version": 4
+}
