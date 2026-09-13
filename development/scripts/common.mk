@@ -8,7 +8,7 @@ AVRDUDE_CONFIG := /etc/avrdude.conf
 PROGRAMMER_TYPE := arduino
 AVR_DEVICE ?= atmega328p
 BAUD ?= 115200
-PORT ?= COM5
+PORT ?= /dev/ttyACM0
 TARGET_PATH ?= build/firmware.hex
 
 AVRDUDE_ARGS := \
