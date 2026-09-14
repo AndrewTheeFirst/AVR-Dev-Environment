@@ -20,8 +20,7 @@ This repository is organized around a reusable AVR development setup:
 ## Prerequisites / Requirements
 The repository is designed around an AVR development toolchain and a serial programmer connection.
 
-### Recommended setup: VS Code devcontainer
-This is the easiest path and matches the repo configuration:
+### Setup
 
 - VS Code
 - Docker Desktop or Docker Engine
@@ -55,7 +54,8 @@ The recommended workflow is to open VS Code in the `development/` directory inst
 
 ## Quick start
 1. Open the repository in VS Code.
-2. If using the devcontainer setup, reopen the workspace in the container.
+2. Reopen the workspace in the container via Reopen in Container command from the Command Palette (Windows, Linux Ctrl+Shift+P)
+
 3. In your terminal, change to a project directory, for example:
 
    cd /workspace/development/applications/template
@@ -64,9 +64,11 @@ The recommended workflow is to open VS Code in the `development/` directory inst
 
    make build
 
-5. Compile and generate the compile database:
+5. Compile and generate the binaries:
 
    make compile
+
+   ***Note: This will also be when intellisense is configured. Open the VSC window to the development/ directory to ensure vscode can resolve any avr-gcc libraries.***
 
 6. Flash to the target MCU:
 

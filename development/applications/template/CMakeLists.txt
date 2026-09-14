@@ -4,17 +4,21 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(avr_template)
 
-add_executable(firmware
-    src/main.c
+add_executable(firmware)
+
+target_sources(firmware
+    PRIVATE
+        src/main.c
 )
 
-target_compile_options(firmware PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Wconversion
-    -O2
-    -g
+target_compile_options(firmware
+    PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wconversion
+        -O2
+        -g
 )
 
 add_custom_command(TARGET firmware POST_BUILD
