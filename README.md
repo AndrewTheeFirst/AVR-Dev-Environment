@@ -1,72 +1,129 @@
-
 # AVR-Dev-Environment
 
-### A small collection of build tooling for building firmware for AVR microcontrollers.
-
-### Contains template application and the repository toolchain to help with AVR firmware development.
-# AVR-Dev-Environment
-
-A small collection of build tooling, a template application, and supporting files to get you started building firmware for AVR microcontrollers.
+A small collection of build tooling, example firmware projects, and supporting files for AVR microcontroller development.
 
 ## Goals
-- Provide a minimal, copyable template application so new projects can be created quickly.  
-- Provide reproducible build tooling and a development container for consistent environments.  
-- Keep editor integrations (VS Code) simple by outputting compile artifacts in a predictable place.
+- Provide a minimal, copyable template application for new AVR projects.
+- Provide reproducible CMake and Make-based build tooling.
+- Include a devcontainer so the same AVR toolchain is available in a consistent environment.
+- Keep editor integrations simple by generating compile artifacts in a predictable location.
 
-## Quick overview / Features
-- Template application you can copy into a new repo or project folder.  
-- Makefile and CMake support for building and flashing.  
-- Compile script that places compile commands / artifacts into an artifacts/ folder so VS Code (c_cpp_properties.json) can pick them up.  
-- Dockerfile and devcontainer support for development inside a reproducible container.
+## Repository overview
+This repository is organized around a reusable AVR development setup:
+
+- `development/applications/` contains example or project-specific firmware applications.
+- `development/applications/template/` is the starting point for a new application.
+- `development/scripts/` contains the shared Make variables and the compile script used by app Makefiles.
+- `development/cmake/toolchain-avr.cmake` configures the AVR GCC toolchain.
+- `.devcontainer/` contains the Dockerfile and VS Code devcontainer configuration.
+
+## Prerequisites / Requirements
+The repository is designed around an AVR development toolchain and a serial programmer connection.
+
+### Recommended setup: VS Code devcontainer
+This is the easiest path and matches the repo configuration:
+
+- VS Code
+- Docker Desktop or Docker Engine
+- VS Code Dev Containers extension
+- A USB serial adapter or Arduino-compatible device connected to the host for flashing
+
+The devcontainer build installs the required packages and downloads the AVR GNU toolchain automatically via the Dockerfile in `.devcontainer/`.
+
+### Serial device requirements
+For flashing, a device such as an Arduino Uno, Nano, or USB-to-TTL serial adapter must be available at a port such as:
+
+- Linux: `/dev/ttyACM0`, `/dev/ttyUSB0`
+- WSL: `/dev/ttyS*`, `/dev/ttyUSB*`, or `/dev/ttyACM*`
+- macOS: `/dev/cu.*` or `/dev/tty.*`
+
+The repo defaults to:
+
+- MCU: `atmega328p`
+- programmer: `arduino`
+- baud: `115200`
+- port: `/dev/ttyACM0`
+
+You may need to add your user to the `dialout` group on Linux or create a udev rule for serial access.
 
 ## VS Code development workflow
-- You can develop in the workspace root, but the recommended workflow for full syntax highlighting and IntelliSense is to open VS Code in the `development/` directory (a subdirectory of the workspace). This matches how c_cpp_properties.json and the project layout are set up so VS Code can discover include paths and the compile database in artifacts/.  
-- The compile script writes compile_commands.json and other outputs into artifacts/ — keep that folder present so IntelliSense can pick up correct flags and include paths.
+The recommended workflow is to open VS Code in the `development/` directory instead of the workspace root. This matches the project layout and the generated compile database.
+
+- `development/.vscode/c_cpp_properties.json` points IntelliSense at `development/artifacts/compile_commands.json`.
+- The compile script copies the generated `compile_commands.json` into `development/artifacts/`.
+- Keep the `development/artifacts/` folder available so VS Code can resolve correct include paths and compiler flags.
+
+## Quick start
+1. Open the repository in VS Code.
+2. If using the devcontainer setup, reopen the workspace in the container.
+3. In your terminal, change to a project directory, for example:
+
+   cd /workspace/development/applications/template
+
+4. Build the project:
+
+   make build
+
+5. Compile and generate the compile database:
+
+   make compile
+
+6. Flash to the target MCU:
+
+   make flash
+
+The project uses the common build script in `development/scripts/` to configure the AVR toolchain and output the firmware hex file.
 
 ## Template usage
-1. Copy the template application into your new project directory (for example, copy contents of `template/` into your project root).  
-2. Edit the project-local Makefile and `CMakeLists.txt` and update the application name or target variable to match your project.
-3. If you need to add/compile additional source files or change flashing settings, edit the Makefile and/or `CMakeLists.txt` in your project — build system changes are intended to be made there.
+1. Copy the contents of `development/applications/template/` into a new project folder.
+2. Update the project-local `Makefile` and `CMakeLists.txt` to match the new application name or target.
+3. Add or remove source files in the app-specific project as needed.
+4. Adjust the build or flash settings in the local project files when your hardware or MCU differs from the defaults.
 
-Tip: Keep project-specific changes inside the project directory so the reusable template can remain generic.
+Tip: Keep project-specific edits inside the application directory so the shared template remains reusable.
 
-## Build (examples)
+## Build system details
+The build system is lightweight:
 
-Make:
-  cd /workspace/development/applications/template
-  make build
-  make compile
-  make flash
-
-The included compile script moves artifacts and the compile_commands.json into an artifacts/ folder. VS Code's c_cpp_properties.json is configured to reference that folder so IntelliSense and browse/indexing work without extra setup.
+- `development/scripts/common.mk` sets the default AVR toolchain, device, port, programmer, and flash arguments.
+- `development/scripts/compile.sh` runs CMake and copies the resulting compile database to `development/artifacts/`.
+- `development/cmake/toolchain-avr.cmake` sets the AVR compiler and target flags.
+- `development/applications/template/CMakeLists.txt` builds an `firmware` executable and emits a `.hex` file from the compiled ELF output.
 
 ## Flashing
-Example (using avrdude — update programmer/port/MCU to match your hardware)
+The default flash step uses `avrdude` with the Arduino profile and the target MCU set in the shared Makefile.
+
+Example:
 
   make flash
 
-If flashing inside the development container (Dev Container / Docker), be aware:
-- The container needs access to the host serial device at container start. If a device/port is referenced in the container configuration but not present, "Reopen in Container" may fail.
-- Workarounds:
-  - Plug the device (Arduino/USB-serial) into the host *before* opening the container so the port exists at container launch.
-  - Temporarily comment out or remove the device-forwarding line from the Dockerfile or devcontainer.json, reopen the container, then re-add the device-forwarding once the container is running and the device is attached.
-  - Use VS Code's devcontainer.json "runArgs": ["--device=/dev/ttyUSB0"] or the equivalent to pass the device into the container.
+To override defaults for a different board or port:
 
-Windows (WSL) specific note:
-- On Windows/WSL you may need to attach the USB device to WSL. On Windows 10/11 with usbipd:
+  make flash AVR_DEVICE=atmega328p PORT=/dev/ttyUSB0 BAUD=57600
+
+If you are flashing from inside the devcontainer, make sure the serial device is visible inside the container. The repo mounts `/dev` into the container to support this pattern.
+
+### Windows / WSL notes
+On Windows/WSL, USB serial adapters may need to be attached to WSL first.
+
+Example:
 
   usbipd wsl list
   usbipd wsl attach --busid <busid>
 
-Replace `<busid>` with the bus ID shown by `usbipd wsl list` for your device. After attaching, the device is visible inside WSL as /dev/ttyS*, /dev/ttyUSB* or /dev/ttyACM* depending on the adapter.
+Replace `<busid>` with the bus ID reported by `usbipd wsl list`.
 
-macOS / Linux notes:
-- On macOS the device is usually /dev/cu.* or /dev/tty.* — plug it in and check `ls /dev/cu.*`.  
-- On Linux the device is typically /dev/ttyUSB* or /dev/ttyACM*. If you cannot access the serial device from the container or host, ensure your user is in the `dialout` group (or add a udev rule).
-
-
+### macOS / Linux notes
+- macOS devices are often under `/dev/cu.*` or `/dev/tty.*`.
+- Linux devices are often under `/dev/ttyUSB*` or `/dev/ttyACM*`.
+- Ensure the user has appropriate permissions for the serial device.
 
 ## Troubleshooting
-- "Reopen in Container" fails with missing port: plug the device in before reopening, or temporarily remove the device-forwarding line from the Dockerfile/devcontainer.json and reopen, then restore it.  
-- On Windows, if ports don't appear in WSL, use usbipd to attach the device.
-- If all else fails, contact me: pattona@southern.edu
+- If the container cannot see the device, plug the adapter in before reopening the container or temporarily remove the device mount from the devcontainer configuration.
+- If `/dev/ttyACM0` does not exist, check the actual port name with `ls /dev/tty*` or `ls /dev/serial/by-id`.
+- If the serial port is not writable, check user permissions and add yourself to the `dialout` group if required.
+- If IntelliSense is missing include paths, confirm that `development/artifacts/compile_commands.json` exists and that VS Code is opened in the `development/` folder.
+- If all else fails, CONTACT ME: pattona@southern.edu.
+
+## License and support
+This project is intended for education and local firmware development. The repo is structured to be copied and adapted for general development.

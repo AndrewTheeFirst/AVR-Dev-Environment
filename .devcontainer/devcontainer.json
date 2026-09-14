@@ -10,16 +10,18 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "workspaceFolder": "/workspace",
   "runArgs": [
-    "--device=/dev/ttyACM0:/dev/ttyACM0"
+    "--privileged"
+  ],
+  "mounts": [
+    "source=/dev,target=/dev,type=bind"
   ],
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-vscode.cpptools",
         "ms-vscode.cpptools-extension-pack",
         "ms-vscode.vscode-serial-monitor"
       ]
     }
   },
-  "remoteUser": "dev"
+  "remoteUser": "root"
 }
