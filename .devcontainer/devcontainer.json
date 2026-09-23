@@ -20,8 +20,11 @@
       "extensions": [
         "ms-vscode.cpptools-extension-pack",
         "ms-vscode.vscode-serial-monitor"
-      ]
+      ],
+      "settings": {
+        "terminal.integrated.cwd": "/workspace/"
+      }
     }
   },
-  "remoteUser": "root"
+  "remoteUser": "dev"
 }

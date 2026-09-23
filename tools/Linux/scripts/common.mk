@@ -3,6 +3,7 @@ DEVELOPMENT_DIR := ${WORKSPACE_DIR}/development
 SCRIPTS_DIR := ${DEVELOPMENT_DIR}/scripts
 
 TOOL_CHAIN_PATH := ${DEVELOPMENT_DIR}/cmake/toolchain-avr.cmake
+AVRDUDE ?= avrdude
 AVRDUDE_CONFIG := /etc/avrdude.conf
 
 PROGRAMMER_TYPE := arduino
@@ -23,7 +24,7 @@ AVRDUDE_ARGS := \
 
 CMAKE_BUILD_ARGS ?=
 
-.PHONY: compile build flash clean
+.PHONY: compile build flash clean project
 
 compile: build
 	@chmod +x ${SCRIPTS_DIR}/compile.sh && \
@@ -33,7 +34,7 @@ build:
 	@cmake -B build -DCMAKE_TOOLCHAIN_FILE=${TOOL_CHAIN_PATH} ${CMAKE_BUILD_ARGS}
 
 flash:
-	@avrdude ${AVRDUDE_ARGS}
+	@${AVRDUDE} ${AVRDUDE_ARGS}
 
 clean:
 	@rm -rf build
