@@ -35,6 +35,8 @@ RUN if ! getent group ${GID} >/dev/null; then groupadd -g ${GID} ${UNAME}; fi &&
         existing=$(getent passwd ${UID} | cut -d: -f1); \
         usermod -l ${UNAME} -d /home/${UNAME} -m ${existing} || true; \
     fi
+    
+RUN usermod -aG dialout dev
 
 WORKDIR /workspace
 USER ${UNAME}
