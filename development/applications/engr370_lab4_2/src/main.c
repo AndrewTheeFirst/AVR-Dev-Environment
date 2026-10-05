@@ -1,99 +1,148 @@
 #define F_CPU 16000000UL
 
 #include <avr/io.h>
-#include <util/delay.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <avr/interrupt.h>
-#include "gpio.h"
-// #include "interrupts.h"
+#include <util/delay.h>
 
-#define NUM_GPIOS 8
-#define DELAY_MS 75
+#define SMOOTH_DELAY_MS 26
+#define DELAY_1_MS 1000
+#define IDEAL_SERVO 0
 
-enum leds_state {
-    LEDS_STATE_STOP,
-    LEDS_STATE_STROBE_LEFT,
-    LEDS_STATE_STROBE_RIGHT
+#define BUTTON_CONTROLLED 1
+#define CHECK_DEGS 0
+#define SCAN 0
+
+#define TOP_FOR_20_MS  5000
+#define TOP_FOR_1_MS   250
+
+#if IDEAL_SERVO
+#define TOP_FOR_180_DEG     (TOP_FOR_1_MS + 250)
+#define TOP_FOR_157_5_DEG   (TOP_FOR_1_MS + 219)
+#define TOP_FOR_135_DEG     (TOP_FOR_1_MS + 188)
+#define TOP_FOR_112_5_DEG   (TOP_FOR_1_MS + 156)
+#define TOP_FOR_90_DEG      (TOP_FOR_1_MS + 125)
+#define TOP_FOR_67_5_DEG    (TOP_FOR_1_MS + 94)
+#define TOP_FOR_45_DEG      (TOP_FOR_1_MS + 63)
+#define TOP_FOR_22_5_DEG    (TOP_FOR_1_MS + 31)
+#define TOP_FOR_0_DEG       (TOP_FOR_1_MS + 0)
+#else
+#define TOP_FOR_180_DEG     550
+#define TOP_FOR_157_5_DEG   498
+#define TOP_FOR_135_DEG     445
+#define TOP_FOR_112_5_DEG   393
+#define TOP_FOR_90_DEG      340
+#define TOP_FOR_67_5_DEG    288
+#define TOP_FOR_45_DEG      235
+#define TOP_FOR_22_5_DEG    183
+#define TOP_FOR_0_DEG       130
+#endif
+
+#define T1_CONFIG_A_FAST_PWM_ADV    ((1 << WGM11) | (1 << WGM10))
+#define T1_CONFIG_A_INVERTING       ((1 << COM1B1) | (1 << COM1B0))
+#define T1_CONFIG_B_FAST_PWM_ADV    ((1 << WGM13) | (1 << WGM12))
+#define T1_CONFIG_B_CS_64           ((1 << CS11) | (1 << CS10))
+
+const uint16_t degs[] = {
+    TOP_FOR_180_DEG,
+    TOP_FOR_157_5_DEG,
+    TOP_FOR_135_DEG,
+    TOP_FOR_112_5_DEG,
+    TOP_FOR_90_DEG,
+    TOP_FOR_67_5_DEG,
+    TOP_FOR_45_DEG,
+    TOP_FOR_22_5_DEG,
+    TOP_FOR_0_DEG
 };
 
-volatile struct gpio_pin* sw1;
-volatile struct gpio_pin* sw2;
-volatile struct gpio_pin* sw3;
+void start_pwm(void){
+    OCR1A = TOP_FOR_20_MS;
+    OCR1B = TOP_FOR_0_DEG;
+    DDRB = (1 << DDB2); // Set PWM pin to OUTPUT
+    TCCR1A = T1_CONFIG_A_FAST_PWM_ADV | T1_CONFIG_A_INVERTING;
+    TCCR1B = T1_CONFIG_B_FAST_PWM_ADV | T1_CONFIG_B_CS_64;
+}
 
-volatile enum leds_state curr_leds_state = LEDS_STATE_STOP;
+void init_switches(void){
+    DDRC &= ~((1 << DDC2) | (1 << DDC1) | (1 << DDC0));    // Set switches as INPUT
+    PORTC |= (1 << PORTC2) | (1 << PORTC1) | (1 << PORTC0); // Enable switch PULLUPs
+    
+    // Enable switch interrupts
+    PCMSK1 = (1 << PCINT8) | (1 << PCINT9) | (1 << PCINT10);
+    PCICR = 1 << PCIE1;
+    sei();
+}
 
-volatile struct gpio_pin* gp_pins [NUM_GPIOS] = {0};
-volatile uint8_t led_index = 0;
+void button_control(void){
+    init_switches();
+    while(1){}
+}
 
-ISR(PCINT1_vect){
-    // cute lil state machine
-    if (!gpio_read_level(sw1)){      // (buttons active low)
-        curr_leds_state = LEDS_STATE_STROBE_RIGHT;
-    }
-    else if (!gpio_read_level(sw2)){
-        curr_leds_state = LEDS_STATE_STROBE_LEFT;
-    }
-    else if (!gpio_read_level(sw3)){
-        curr_leds_state = LEDS_STATE_STOP;
+void check_degs(void){
+    uint8_t index = 0;
+    while(1){
+        OCR1B = degs[index];
+        index = (index + 1) % 9;
+        _delay_ms(DELAY_1_MS);
     }
 }
 
-ISR(TIMER1_COMPA_vect){
-    struct gpio_pin* gp_pin = gp_pins[led_index];
-    if (curr_leds_state != LEDS_STATE_STOP){
-        gpio_set_level(gp_pin, LL_LOW);
-        if (curr_leds_state == LEDS_STATE_STROBE_RIGHT){
-            if (++led_index >= NUM_GPIOS){ led_index = 0; }           
+void scan(void){
+    while (1){
+        for (int16_t index = TOP_FOR_180_DEG; index > TOP_FOR_0_DEG; index -= (TOP_FOR_180_DEG - TOP_FOR_0_DEG) / 32){
+            OCR1B = index;
+            _delay_ms(SMOOTH_DELAY_MS);
         }
-        else if (curr_leds_state == LEDS_STATE_STROBE_LEFT){
-            if (led_index-- == 0){ led_index = NUM_GPIOS - 1; }
+        for (int16_t index = TOP_FOR_0_DEG; index < TOP_FOR_180_DEG; index += (TOP_FOR_180_DEG - TOP_FOR_0_DEG) / 32){
+            OCR1B = index;
+            _delay_ms(SMOOTH_DELAY_MS);
         }
-        gp_pin = gp_pins[led_index];
     }
-    gpio_set_level(gp_pin, LL_HIGH);
-}
-
-void init_buttons(void){
-    // initialize buttons
-    sw1 = gpio_init(GROUP_C, 1);
-    gpio_config(sw1, GPIO_CONFIG_IPULLUP);
-
-    sw2 = gpio_init(GROUP_C, 2);
-    gpio_config(sw2, GPIO_CONFIG_IPULLUP);
-
-    sw3 = gpio_init(GROUP_C, 0);
-    gpio_config(sw3, GPIO_CONFIG_IPULLUP);
-}
-
-void init_leds(void){
-    // initialize leds
-    for (uint8_t index = 0; index < NUM_GPIOS; index++){
-        struct gpio_pin* gp_pin = gpio_init(GROUP_D, index);
-        gp_pins[index] = gp_pin;
-        // gpio_config(gp_pin, GPIO_CONFIG_OUTPUT); 
-    }
-    DDRD =  0b11111111; // enable all leds as output
-}
-
-void init_timer(void){
-    TCCR1A = (1 << WGM11); // ctc mode
-    TCCR1B = (1 << CS10) | (1 << CS12); // set clock divide 1024
-    OCR1A = 255; // set compare value
-    TIMSK1 |= (1 << OCIE1A); // enable interrupts on Timer 1 Compare Match A
 }
 
 int main(void){
-    PCICR = 1 << PCIE1; // activate pin-group interrupts
-    PCMSK1 = (1 << PCINT0) | (1 << PCINT1) | (1 << PCINT2); // activate specific pin-group pins' interrupt
-    sei(); // activate global interrupts
-
-    init_buttons();
-    init_leds();
-    init_timer();
-
-    while(1){
-
-    }
-    
+    start_pwm();
+#if BUTTON_CONTROLLED
+    button_control();
+#elif CHECK_DEGS
+    check_degs();
+#elif SCAN
+    scan();
+#endif
     return 0;
+}
+
+#define BUTTON_1_PRESSED (1 << PINC2)
+#define BUTTON_2_PRESSED (1 << PINC1)
+#define BUTTON_3_PRESSED (1 << PINC0)
+
+ISR(PCINT1_vect){
+    uint8_t switches = ~PINC & ((1 << PINC1) | (1 << PINC2) | (1 << PINC0));
+    switch(switches){
+        case BUTTON_3_PRESSED | BUTTON_2_PRESSED | BUTTON_1_PRESSED:
+            OCR1B = TOP_FOR_22_5_DEG;
+            break;
+        case BUTTON_3_PRESSED | BUTTON_2_PRESSED:
+            OCR1B = TOP_FOR_45_DEG;
+            break;
+        case BUTTON_3_PRESSED | BUTTON_1_PRESSED:
+            OCR1B = TOP_FOR_67_5_DEG;
+            break;
+        case BUTTON_2_PRESSED | BUTTON_1_PRESSED:
+            OCR1B = TOP_FOR_135_DEG;
+            break;
+        case BUTTON_1_PRESSED:
+            OCR1B = TOP_FOR_180_DEG;
+            break;
+        case BUTTON_2_PRESSED:
+            OCR1B = TOP_FOR_157_5_DEG;
+            break;
+        case BUTTON_3_PRESSED:
+            OCR1B = TOP_FOR_112_5_DEG;
+            break;
+        default:
+            OCR1B = TOP_FOR_90_DEG;
+            break;
+    }
 }

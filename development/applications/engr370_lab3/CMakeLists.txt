@@ -2,13 +2,25 @@ cmake_minimum_required(VERSION 3.20)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-project(engr370_lab4_3)
+set(CUSTOM_LIBS_DIR "/workspace/development/libs")
+
+project(avr_poc)
 
 add_executable(firmware)
 
 target_sources(firmware
     PRIVATE
         src/main.c
+)
+
+add_subdirectory(
+    ${CUSTOM_LIBS_DIR}/gpio
+    ${CMAKE_CURRENT_SOURCE_DIR}/build/gpio
+)
+
+target_link_libraries(firmware
+    PRIVATE 
+        EZ_GPIO
 )
 
 target_compile_options(firmware
