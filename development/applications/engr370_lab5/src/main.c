@@ -62,12 +62,7 @@ void GetSerialMsg(char char_buffer[]){
                 char_buffer[index++] = character;
                 if (character == '\n'){
                     char_buffer[index] = '\0';
-#if GET_SERIAL_MSG_DEMO
-                    SendSerialMsg(buffer); // verify functionality
-                    index = 0;
-#else
                     return;
-#endif
                 } 
             }
         }
@@ -105,6 +100,14 @@ void send_name_demo2(void){
     }
 }
 
+void get_msg_demo(void){
+    char buffer[64];
+    while (1){
+        GetSerialMsg(buffer);
+        SendSerialMsg(buffer); // verify functionality
+    }
+}
+
 void calculator_demo(void){
     char num1[3], num2[3];
     int8_t num1_val, num2_val;
@@ -139,6 +142,28 @@ void calculator_demo(void){
     }
 }
 
+enum button_state{
+    PRESSED,
+    UNPRESSED
+};
+
+volatile enum button_state btn_state = PRESSED;
+enum button_state prev_btn_state = PRESSED;
+
+void button_demo(void){
+    while(1){
+        if (btn_state != prev_btn_state){
+            if (btn_state == PRESSED){
+                SendSerialMsg("LED ON\n");
+            }
+            else{
+                SendSerialMsg("LED OFF\n");
+            }
+            prev_btn_state = btn_state;
+        }
+    }
+}
+
 int main(void){
     init_uart();
 #if SEND_NAME_DEMO_1
@@ -146,9 +171,9 @@ int main(void){
 #elif BUTTON_DEMO
     init_led();
     init_button();
+    button_demo();
 #elif GET_SERIAL_MSG_DEMO
-    char buffer[64];
-    GetSerialMsg(buffer);
+    get_msg_demo();
 #elif SEND_NAME_DEMO_2
     send_name_demo2();
 #elif SIMPLE_CALCULATOR_DEMO
@@ -164,10 +189,18 @@ int main(void){
 ISR(PCINT1_vect){
     if (BUTTON_PRESSED){
         PORTD |= 1 << DDD4;
+#if BUTTON_DEMO
+        btn_state = PRESSED;
+#else
         SendSerialMsg("LED ON\n");
+#endif
     }
     else{
         PORTD &= ~(1 << DDD4);
+#if BUTTON_DEMO
+        btn_state = UNPRESSED;
+#else
         SendSerialMsg("LED OFF\n");
+#endif
     }
 }

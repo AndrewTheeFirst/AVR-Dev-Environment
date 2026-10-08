@@ -18,19 +18,13 @@
 #define QUEUED_SERIAL_MSG_DEMO 1
 
 #define UART_CONF_C_8_BIT ((1 << UCSZ01) | (1 << UCSZ00))
-#define UART_CONF_B_ENABLE_TX ((1 << TXEN0))
-#define UART_CONF_B_ENABLE_RX ((1 << RXEN0))
 #define GET_UART_UBRR0(baud) ((F_CPU / (16 * baud)) - 1)
 
 #define UART_TX_REG_EMPTY (UCSR0A & (1 << UDRE0))
 
 static int uart_putchar(char c, FILE* stream){
-    while(1){
-        if(UART_TX_REG_EMPTY){
-            UDR0 = c;
-            break;
-        }
-    }
+    while(!UART_TX_REG_EMPTY){}
+    UDR0 = c;
     return 0;
 }
 
@@ -39,16 +33,16 @@ static FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRIT
 void init_uart(void){
     UBRR0 = GET_UART_UBRR0(BAUD); 
     UCSR0C |= UART_CONF_C_8_BIT;
-    UCSR0B |= UART_CONF_B_ENABLE_TX | UART_CONF_B_ENABLE_RX;
+    UCSR0B |= (1 << TXEN0) | (1 << RXEN0);
     stdout = &uart_output;
     
 }
 
 #define UART_QUEUE_SIZE 64
 
-volatile char uart_circ_queue[UART_QUEUE_SIZE];
-volatile bool uart_queue_full = false;
-volatile uint8_t uart_queue_head, uart_queue_tail;
+char uart_circ_queue[UART_QUEUE_SIZE];
+bool uart_queue_full = false;
+uint8_t uart_queue_head, uart_queue_tail;
 
 int uart_push_char(char c){
     if (uart_queue_full){ // queue is full
@@ -90,6 +84,7 @@ void init_button(void){
 
 void read_from_queue(void){
     while (1){
+        _delay_ms(250);
         uint8_t c;
         if (uart_pop_char(&c) == EXIT_SUCCESS){
             printf("popped off: %d\n", c);
@@ -136,23 +131,7 @@ int SendSerialMsg(char* string){
 #define BUTTON_2_PRESSED (~PINC & (1 << PINC1))
 
 ISR(PCINT1_vect){
-#if CIRC_BUFF_TEST
-    if (BUTTON_1_PRESSED){
-        if (uart_push_char('a') == EXIT_FAILURE){
-            printf("Buffer is Full.\n");
-            return;
-        }
-        printf("Successfully added 'a' to buffer.\n");
-    }
-    if (BUTTON_2_PRESSED){
-        char c;
-        if (uart_pop_char(&c) == EXIT_FAILURE){
-            printf("Buffer is Empty.\n");
-            return;
-        }
-        printf("Successfully removed '%c' from buffer.\n", c);
-    }
-#elif CIRC_BUFF_DEMO
+#if CIRC_BUFF_DEMO
     if (BUTTON_1_PRESSED){
         for (uint8_t index = 1; index <= 10; index++){
             if (uart_push_char(index) == EXIT_FAILURE){
