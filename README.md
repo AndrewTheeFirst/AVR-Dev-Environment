@@ -3,7 +3,7 @@
 A small collection of build tooling, example firmware projects, and supporting files for AVR microcontroller development.
 
 ## Goals
-- Provide a minimal, copyable template application for new AVR projects.
+- Provide a copyable template application for new AVR projects.
 - Provide reproducible CMake and Make-based build tooling.
 - Include a devcontainer so the same AVR toolchain is available in a consistent environment.
 - Keep editor integrations simple by generating compile artifacts in a predictable location.
@@ -45,34 +45,30 @@ The repo defaults to:
 
 You may need to add your user to the `dialout` group on Linux or create a udev rule for serial access.
 
-## VS Code development workflow
-The recommended workflow is to open VS Code in the `development/` directory instead of the workspace root. This matches the project layout and the generated compile database.
-
-- `development/.vscode/c_cpp_properties.json` points IntelliSense at `development/artifacts/compile_commands.json`.
-- The compile script copies the generated `compile_commands.json` into `development/artifacts/`.
-- Keep the `development/artifacts/` folder available so VS Code can resolve correct include paths and compiler flags.
-
-## Quick start
+## Quick start 
 1. Open the repository in VS Code.
-2. Reopen the workspace in the container via Reopen in Container command from the Command Palette (Windows, Linux Ctrl+Shift+P)
 
-3. In your terminal, change to a project directory, for example:
+2. In your terminal, outside of the container, run:
 
-   cd /workspace/development/applications/template
+   bash tools/setup.sh
 
-4. Build the project:
+3. Reopen the workspace in the container via Reopen in Container command from the Command Palette (Ctrl+Shift+P)
 
-   make build
+4. Change to a project directory. For example, in your terminal run:
 
-5. Compile and generate the binaries:
+   ```cd /workspace/development/applications/template```
 
-   make compile
+5. Build the project:
 
-   ***Note: This will also be when intellisense is configured. Open the VSC window to the development/ directory to ensure vscode can resolve any avr-gcc libraries.***
+   ```make build```
 
-6. Flash to the target MCU:
+6. Compile and generate the binaries:
 
-   make flash
+   ```make compile```
+
+7. Flash to the target MCU:
+
+   ```make flash```
 
 The project uses the common build script in `development/scripts/` to configure the AVR toolchain and output the firmware hex file.
 
@@ -97,35 +93,57 @@ The default flash step uses `avrdude` with the Arduino profile and the target MC
 
 Example:
 
-  make flash
+  ```make flash```
 
 To override defaults for a different board or port:
 
-  make flash AVR_DEVICE=atmega328p PORT=/dev/ttyUSB0 BAUD=57600
+  ```make flash AVR_DEVICE=atmega328p PORT=/dev/ttyUSB0 BAUD=57600```
 
 If you are flashing from inside the devcontainer, make sure the serial device is visible inside the container. The repo mounts `/dev` into the container to support this pattern.
 
 ### Windows / WSL notes
-On Windows/WSL, USB serial adapters may need to be attached to WSL first.
+On Windows/WSL, USB serial adapters may need to be attached to WSL first. 
 
-Example:
+1. Open Powershell / Terminal
 
-  usbipd wsl list
-  usbipd wsl attach --busid <busid>
+2. Install usbipd with:
 
-Replace `<busid>` with the bus ID reported by `usbipd wsl list`.
+   ```winget install usbipd```
 
-### macOS / Linux notes
+3. Search for AVR device and. Note the busid.
+
+   ```usbipd wsl list```
+
+4. Attach the port to WSL. Run the command below. Be sure to replace `<busid>` with the bus ID reported by `usbipd wsl list`.
+
+  ```usbipd attach --wsl --busid <busid> --auto-attach```
+
+### macOS notes
 - macOS devices are often under `/dev/cu.*` or `/dev/tty.*`.
-- Linux devices are often under `/dev/ttyUSB*` or `/dev/ttyACM*`.
+- On macOS, this command `make flash` must be run OUTSIDE of the container (but still within the correct application directory).
+1. To close the container, open the command palette (Cmd+Shift+P) and search ```Dev Containers: Reopen Folder Locally```
+2. Change to a project directory, ie.:
+
+   ```cd /workspace/development/applications/template```
+3. Then flash to device:
+
+   ```make flash```
+
+### Linux notes
 - Ensure the user has appropriate permissions for the serial device.
+- Linux devices are often under `/dev/ttyUSB*` or `/dev/ttyACM*`.
 
 ## Troubleshooting
-- If the container cannot see the device, plug the adapter in before reopening the container or temporarily remove the device mount from the devcontainer configuration.
-- If `/dev/ttyACM0` does not exist, check the actual port name with `ls /dev/tty*` or `ls /dev/serial/by-id`.
-- If the serial port is not writable, check user permissions and add yourself to the `dialout` group if required.
-- If IntelliSense is missing include paths, confirm that `development/artifacts/compile_commands.json` exists and that VS Code is opened in the `development/` folder.
-- If all else fails, CONTACT ME: pattona@southern.edu.
+### I am not getting syntax highlighting!
+* Confirm that `development/artifacts/compile_commands.json` exists, if not, try running:
 
-## License and support
-This project is intended for education and local firmware development. The repo is structured to be copied and adapted for general development.
+```make compile```
+
+* Otherwise try reloading the window with Ctrl + R.
+
+### I am getting this error: avrdude ser_open() OS error: cannot open port <...>: No such file or directory!
+* Attempt to plug the adapter in before reopening the container or temporarily remove the device mount from the devcontainer configuration.
+
+* Additionally, you can check the actual port name in the container using `ls /dev/tty*` or `ls /dev/serial/by-id`.
+
+### If all else fails, CONTACT ME: pattona@southern.edu.
